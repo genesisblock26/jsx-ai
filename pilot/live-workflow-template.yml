@@ -1,0 +1,40 @@
+# Install as .github/workflows/genesis-openai-pilot.yml on the default branch,
+# replacing LIVE_PILOT_COMMIT_SHA with the reviewed commit containing pilot/.
+# workflow_dispatch is unavailable until the workflow exists on that branch.
+name: Genesis fictional OpenAI pilot
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'offline: verify without a key; live: one paid OpenAI request'
+        required: true
+        type: choice
+        default: offline
+        options:
+          - offline
+          - live
+permissions:
+  contents: read
+jobs:
+  run-one-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check out the reviewed pilot
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: LIVE_PILOT_COMMIT_SHA
+          persist-credentials: false
+      - name: Use Node.js 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Run the offline safeguards
+        run: node --experimental-transform-types pilot/test-live-node.mjs
+      - name: One fictional request to OpenAI
+        if: ${{ inputs.mode == 'live' }}
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PILOT_ALLOW_LIVE: 'yes'
+        run: node --experimental-transform-types pilot/run-live-node.mjs
